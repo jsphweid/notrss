@@ -1,0 +1,33 @@
+{
+  "name": "not-rss",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "rm -rf build && tsc && cp package.json ./build && cp package-lock.json ./build && cd build && npm i --production",
+    "test": "jest --watchAll",
+    "codegen": "npx graphql-codegen --config ./codegen.yml"
+  },
+  "dependencies": {
+    "apollo-server-lambda": "^2.21.2",
+    "aws-sdk": "^2.867.0",
+    "chrome-aws-lambda": "^8.0.0",
+    "graphql": "^15.5.0",
+    "mimemessage": "^1.0.5",
+    "pixelmatch": "^5.2.1",
+    "pngjs": "^6.0.0"
+  },
+  "devDependencies": {
+    "@graphql-codegen/cli": "^1.21.3",
+    "@graphql-codegen/typescript": "^1.21.1",
+    "@graphql-codegen/typescript-operations": "^1.17.15",
+    "@graphql-codegen/typescript-resolvers": "^1.19.0",
+    "@shelf/jest-dynamodb": "^1.8.1",
+    "@types/aws-lambda": "^8.10.72",
+    "@types/jest": "^26.0.21",
+    "@types/node": "^14.14.35",
+    "@types/pixelmatch": "^5.2.2",
+    "@types/pngjs": "^6.0.0",
+    "jest": "^26.6.3",
+    "ts-jest": "^26.5.4"
+  }
+}

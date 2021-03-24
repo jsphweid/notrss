@@ -1,0 +1,7 @@
+schema: "./src/api-lambda/**/*.ts"
+generates:
+  ./src/generated.ts:
+    plugins:
+      - typescript
+      - typescript-operations
+      - typescript-resolvers
