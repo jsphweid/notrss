@@ -26,4 +26,10 @@ export namespace Utils {
     new Promise((resolve) => {
       setTimeout(resolve, seconds * 1000);
     });
+
+  export const base64Encode = (str: string): string =>
+    Buffer.from(str).toString("base64");
+
+  export const base64Decode = (str: string): string =>
+    Buffer.from(str, "base64").toString("ascii");
 }

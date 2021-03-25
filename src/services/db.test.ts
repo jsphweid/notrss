@@ -150,7 +150,7 @@ describe("DB tests", () => {
     );
   });
 
-  test("getSnapshots works", async () => {
+  test("getSnapshots gets correct results back with forward cursor", async () => {
     await DB.addNewSnapshot({ objectStorageKey: "1", site: "a.com" });
     await DB.addNewSnapshot({
       objectStorageKey: "2",
@@ -164,16 +164,35 @@ describe("DB tests", () => {
       diffObjectStorageKey: "3a",
     });
 
-    const snapshots = await DB.getSnapshots("a.com");
-    expect(snapshots.length).toBe(3);
-    expect(snapshots).toEqual(
+    let conn = await DB.getSnapshots("a.com", { first: 1 });
+    expect(conn.edges.length).toBe(1);
+    expect(conn.pageInfo.startCursor).toEqual(Utils.base64Encode("v1"));
+    expect(conn.pageInfo.endCursor).toEqual(Utils.base64Encode("v1"));
+    expect(conn.pageInfo.hasPreviousPage).toBe(false);
+    expect(conn.pageInfo.hasNextPage).toBe(true);
+    expect(conn.pageInfo.endCursor).toEqual(conn.edges[0].cursor);
+    expect(conn.edges[0].node).toEqual(
+      expect.objectContaining({
+        version: 1,
+        site: "a.com",
+        objectStorageKey: "1",
+        diffObjectStorageKey: null,
+      })
+    );
+
+    conn = await DB.getSnapshots("a.com", {
+      first: 2,
+      after: conn.pageInfo.endCursor,
+    });
+    expect(conn.edges.length).toBe(2);
+    expect(conn.pageInfo.startCursor).toEqual(conn.edges[0].cursor);
+    expect(conn.pageInfo.startCursor).toEqual(Utils.base64Encode("v2"));
+    expect(conn.pageInfo.endCursor).toEqual(conn.edges[1].cursor);
+    expect(conn.pageInfo.endCursor).toEqual(Utils.base64Encode("v3"));
+    expect(conn.pageInfo.hasPreviousPage).toBe(true);
+    expect(conn.pageInfo.hasNextPage).toBe(false);
+    expect(conn.edges.map((e) => e.node)).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({
-          version: 1,
-          site: "a.com",
-          objectStorageKey: "1",
-          diffObjectStorageKey: null,
-        }),
         expect.objectContaining({
           version: 2,
           site: "a.com",
@@ -189,4 +208,90 @@ describe("DB tests", () => {
       ])
     );
   });
+
+  test("getSnapshots gets correct results back with backwards cursor", async () => {
+    await DB.addNewSnapshot({ objectStorageKey: "1", site: "a.com" });
+    await DB.addNewSnapshot({
+      objectStorageKey: "2",
+      site: "a.com",
+      diffObjectStorageKey: "2a",
+    });
+    await DB.addNewSnapshot({
+      objectStorageKey: "3",
+      site: "a.com",
+      diffObjectStorageKey: "3a",
+    });
+
+    let conn = await DB.getSnapshots("a.com", {
+      last: 1,
+      before: Utils.base64Encode("v3"),
+    });
+    expect(conn.edges.length).toBe(1);
+    expect(conn.pageInfo.startCursor).toEqual(Utils.base64Encode("v2"));
+    expect(conn.pageInfo.endCursor).toEqual(Utils.base64Encode("v2"));
+    expect(conn.pageInfo.hasPreviousPage).toBe(true);
+    expect(conn.pageInfo.hasNextPage).toBe(true);
+    expect(conn.edges[0].node).toEqual(
+      expect.objectContaining({
+        version: 2,
+        site: "a.com",
+        objectStorageKey: "2",
+        diffObjectStorageKey: "2a",
+      })
+    );
+
+    conn = await DB.getSnapshots("a.com", {
+      first: 2,
+      before: Utils.base64Encode("v3"),
+    });
+
+    expect(conn.edges.length).toBe(2);
+    expect(conn.pageInfo.startCursor).toEqual(conn.edges[0].cursor);
+    expect(conn.pageInfo.startCursor).toEqual(Utils.base64Encode("v2"));
+    expect(conn.pageInfo.endCursor).toEqual(conn.edges[1].cursor);
+    expect(conn.pageInfo.endCursor).toEqual(Utils.base64Encode("v1"));
+    expect(conn.pageInfo.hasPreviousPage).toBe(true);
+    expect(conn.pageInfo.hasNextPage).toBe(false);
+    expect(conn.edges.map((e) => e.node)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          version: 2,
+          site: "a.com",
+          objectStorageKey: "2",
+          diffObjectStorageKey: "2a",
+        }),
+        expect.objectContaining({
+          version: 1,
+          site: "a.com",
+          objectStorageKey: "1",
+        }),
+      ])
+    );
+  });
+
+  test.each`
+    options
+    ${{}}
+    ${{ first: 3 }}
+    ${{ first: 4 }}
+    ${{ first: 40 }}
+  `(
+    "getSnapshots gets correct all results when `options` is $options",
+    async (options) => {
+      await DB.addNewSnapshot({ objectStorageKey: "1", site: "a.com" });
+      await DB.addNewSnapshot({
+        objectStorageKey: "2",
+        site: "a.com",
+        diffObjectStorageKey: "2a",
+      });
+      await DB.addNewSnapshot({
+        objectStorageKey: "3",
+        site: "a.com",
+        diffObjectStorageKey: "3a",
+      });
+
+      const conn = await DB.getSnapshots("a.com", options);
+      expect(conn.edges.length).toBe(3);
+    }
+  );
 });

@@ -1,4 +1,4 @@
-schema: "./src/api-lambda/**/*.ts"
+schema: "./src/api-lambda/**/index.ts"
 generates:
   ./src/generated.ts:
     plugins:

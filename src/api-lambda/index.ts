@@ -5,12 +5,30 @@ import { Resolvers } from "../generated";
 import { DB } from "../services/db";
 import { Email } from "../services/email";
 import { ObjectStorage } from "../services/object-storage";
+import { SnapshotMapper } from "./mappers";
 
 const typeDefs = gql`
   type Subscription {
     email: String!
     site: String!
     dateCreated: String! # should probably be a DateTime scalar
+  }
+
+  type PageInfo {
+    startCursor: String
+    endCursor: String
+    hasPreviousPage: Boolean!
+    hasNextPage: Boolean!
+  }
+
+  type SnapshotConnection {
+    pageInfo: PageInfo!
+    edges: [SnapshotEdge!]!
+  }
+
+  type SnapshotEdge {
+    cursor: String!
+    node: Snapshot!
   }
 
   type Snapshot {
@@ -24,7 +42,13 @@ const typeDefs = gql`
   type Query {
     getEmailsSubscribedToSite(site: String!): [String!]!
     getSubscriptionsByEmail(email: String!): [Subscription!]!
-    getSnapshots(site: String!): [Snapshot!]!
+    getSnapshots(
+      site: String!
+      first: Int
+      after: String
+      last: Int
+      before: String
+    ): SnapshotConnection!
   }
 
   type Mutation {
@@ -39,16 +63,27 @@ const resolvers: Resolvers = {
     getSubscriptionsByEmail: (_, args) =>
       DB.getSubscriptionsByEmail(args.email),
     getSnapshots: (_, args) =>
-      DB.getSnapshots(args.site).then((snapshots) =>
-        snapshots.map((s) => ({
-          ...s,
-          dateCreated: s.dateCreated.toISOString(),
-          objectStorageUrl: ObjectStorage.urlFromKey(s.objectStorageKey),
-          diffObjectStorageUrl: s.diffObjectStorageKey
-            ? ObjectStorage.urlFromKey(s.diffObjectStorageKey)
-            : null,
-        }))
-      ),
+      DB.getSnapshots(args.site, {
+        first: args.first,
+        after: args.after,
+        last: args.last,
+        before: args.before,
+      }).then((result) => ({
+        pageInfo: result.pageInfo,
+        edges: result.edges.map((edge) => ({
+          cursor: edge.cursor,
+          node: {
+            ...edge.node,
+            dateCreated: edge.node.dateCreated.toISOString(),
+            objectStorageUrl: ObjectStorage.urlFromKey(
+              edge.node.objectStorageKey
+            ),
+            diffObjectStorageUrl: edge.node.diffObjectStorageKey
+              ? ObjectStorage.urlFromKey(edge.node.diffObjectStorageKey)
+              : null,
+          },
+        })),
+      })),
   },
   Mutation: {
     subscribeEmailToSites: (_, args) =>

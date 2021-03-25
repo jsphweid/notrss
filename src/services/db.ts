@@ -134,7 +134,7 @@ export namespace DB {
         }))
       );
 
-  interface Snapshot {
+  export interface Snapshot {
     dateCreated: Date;
     site: string;
     version: number; // TODO: maybe this shouldn't be included as it only has relevance in DB...?
@@ -142,39 +142,123 @@ export namespace DB {
     diffObjectStorageKey: Maybe<string>;
   }
 
-  interface GetSnapshotsOptions {
-    // could add max page size, ordering, etc.
+  interface DynamoDBSnapshotItem {
+    DateCreated: number;
+    PK: string;
+    SK: string;
+    ObjectKey: string;
+    DiffObjectKey?: string | null;
   }
-  export const getSnapshots = (
+
+  const dynamoDBItemToSnapshot = (item: DynamoDBSnapshotItem): Snapshot => ({
+    dateCreated: new Date(item.DateCreated),
+    site: item.PK,
+    version: parseInt(item.SK.split("v")[1]),
+    objectStorageKey: item.ObjectKey,
+    diffObjectStorageKey: item.DiffObjectKey || null,
+  });
+
+  interface GetSnapshotResult {
+    edges: { cursor: string; node: Snapshot }[];
+    pageInfo: {
+      startCursor: string | null;
+      endCursor: string | null;
+      hasPreviousPage: boolean;
+      hasNextPage: boolean;
+    };
+  }
+
+  interface GetSnapshotsOptions {
+    first?: number | null;
+    after?: string | null;
+    last?: number | null;
+    before?: string | null;
+  }
+  export const getSnapshots = async (
     site: string,
     options?: GetSnapshotsOptions
-  ): Promise<Snapshot[]> =>
-    documentClient
-      .query({
-        TableName: tableName,
-        KeyConditionExpression: "#PK = :site and begins_with(#SK, :startsWith)",
-        ExpressionAttributeNames: {
-          "#PK": "PK",
-          "#SK": "SK",
-        },
-        ExpressionAttributeValues: {
-          ":site": site,
-          ":startsWith": "v",
-        },
-      })
-      .promise()
-      .then((result) => result["Items"] || [])
-      .then((items) =>
-        items
-          .filter((item) => item.SK !== "v0")
-          .map((item) => ({
-            dateCreated: new Date(item.DateCreated),
-            site: item.PK,
-            version: parseInt(item.SK.split("v")[1]),
-            objectStorageKey: item.ObjectKey,
-            diffObjectStorageKey: item.DiffObjectKey || null,
-          }))
-      );
+  ): Promise<GetSnapshotResult> => {
+    let results: DynamoDBSnapshotItem[] = [];
+    let hasNextPage = false;
+
+    if (options?.first && options.first < 0) {
+      throw new Error("`first` cannot be below 0");
+    }
+    if (options?.last && options.last < 0) {
+      throw new Error("`last` cannot be below 0");
+    }
+    if (options?.last && !options?.before) {
+      throw new Error("Cannot use `last` without `before`");
+    }
+
+    const query = (start?: string) =>
+      documentClient
+        .query({
+          TableName: tableName,
+          KeyConditionExpression:
+            "#PK = :site and begins_with(#SK, :startsWith)",
+          ExclusiveStartKey: {
+            PK: site,
+            SK: options?.after
+              ? Utils.base64Decode(options.after)
+              : options?.before
+              ? Utils.base64Decode(options.before)
+              : "v0",
+          },
+          ExpressionAttributeNames: {
+            "#PK": "PK",
+            "#SK": "SK",
+          },
+          ScanIndexForward: !options?.before,
+          Limit: options?.first
+            ? options.first + 1
+            : options?.last
+            ? options.last + 1
+            : undefined,
+          ExpressionAttributeValues: {
+            ":site": site,
+            ":startsWith": "v",
+          },
+        })
+        .promise()
+        .then(async (result) => {
+          let dynamoDBItems = (result["Items"] as DynamoDBSnapshotItem[]) || [];
+          dynamoDBItems = dynamoDBItems.filter((item) => item.SK !== "v0");
+          hasNextPage = options?.first
+            ? dynamoDBItems.length > options.first
+            : typeof result.LastEvaluatedKey !== "undefined";
+
+          if (hasNextPage) {
+            dynamoDBItems = dynamoDBItems.slice(0, -1);
+          }
+          dynamoDBItems.forEach((item) => results.push(item));
+
+          if (
+            typeof result.LastEvaluatedKey !== "undefined" &&
+            dynamoDBItems.length !== options?.first &&
+            dynamoDBItems.length !== options?.last
+          ) {
+            await query(result.LastEvaluatedKey.SK);
+          }
+        });
+
+    await query();
+
+    return {
+      edges: results.map((result) => ({
+        node: { ...dynamoDBItemToSnapshot(result) },
+        cursor: Utils.base64Encode(result.SK),
+      })),
+      pageInfo: {
+        startCursor: results.length ? Utils.base64Encode(results[0].SK) : null,
+        endCursor: results.length
+          ? Utils.base64Encode(results[results.length - 1].SK)
+          : null,
+        hasNextPage,
+        hasPreviousPage: results.length ? results[0].SK !== "v1" : false,
+      },
+    };
+  };
 
   export const subscribeEmailToSites = (request: {
     email: string;
