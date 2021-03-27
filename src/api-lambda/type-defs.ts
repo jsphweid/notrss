@@ -4,7 +4,7 @@ export const typeDefs = gql`
   type Subscription {
     email: String!
     site: String!
-    dateCreated: String! # should probably be a DateTime scalar
+    dateCreated: String!
   }
 
   type PageInfo {
@@ -46,6 +46,10 @@ export const typeDefs = gql`
   }
 
   type Mutation {
+    """
+    Subscribes and email to one or more sites. If that isn't being monitored, then it will
+    begin to monitor the site. This is currently the only way to begin monitoring a site.
+    """
     subscribeEmailToSites(email: String!, sites: [String!]!): Boolean!
   }
 `;

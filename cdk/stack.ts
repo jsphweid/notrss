@@ -9,13 +9,13 @@ import * as s3 from "@aws-cdk/aws-s3";
 import * as iam from "@aws-cdk/aws-iam";
 import * as apiGateway from "@aws-cdk/aws-apigateway";
 
-import { Duration } from "@aws-cdk/core";
+import { CfnParameter, Duration } from "@aws-cdk/core";
 
 export namespace NotRss {
   interface StackProps extends cdk.StackProps {
     env: { region: string };
     numHoursBetweenCompares: number;
-    emailToSendAlertsFrom: string;
+    emailAlertsFrom: string;
   }
 
   export class Stack extends cdk.Stack {
@@ -57,13 +57,10 @@ export namespace NotRss {
         publicReadAccess: true,
       });
 
-      // Queue that will contain individual comparisons to make
       const comparerLambdaTimeout = 120;
-      const comparerLambdaRetries = 1;
+      // Queue that will contain individual comparisons to make
       const queue = new sqs.Queue(this, "Queue", {
-        visibilityTimeout: Duration.seconds(
-          comparerLambdaTimeout * (comparerLambdaRetries + 1) * 6
-        ),
+        visibilityTimeout: Duration.seconds(comparerLambdaTimeout * 6),
       });
 
       // Populates the queue with comparisons to make
@@ -102,12 +99,11 @@ export namespace NotRss {
         handler: "comparer-lambda/index.handler",
         memorySize: 512,
         timeout: Duration.seconds(comparerLambdaTimeout),
-        retryAttempts: comparerLambdaRetries,
         environment: {
           S3_PNG_BUCKET_NAME: bucket.bucketName,
           DYNAMODB_TABLE_NAME: table.tableName,
           QUEUE_URL: queue.queueUrl,
-          EMAIL_TO_SEND_ALERTS_FROM: props.emailToSendAlertsFrom,
+          EMAIL_TO_SEND_ALERTS_FROM: props.emailAlertsFrom,
         },
       });
 
