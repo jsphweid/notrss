@@ -5,7 +5,8 @@
   "scripts": {
     "build": "rm -rf build && tsc && cp package.json ./build && cp package-lock.json ./build && cd build && npm i --production",
     "test": "jest --watchAll",
-    "codegen": "npx graphql-codegen --config ./codegen.yml"
+    "codegen": "npx graphql-codegen --config ./codegen.yml",
+    "start": "ts-node src/api-lambda/run-locally.ts"
   },
   "dependencies": {
     "apollo-server-lambda": "^2.21.2",
@@ -27,6 +28,7 @@
     "@types/node": "^14.14.35",
     "@types/pixelmatch": "^5.2.2",
     "@types/pngjs": "^6.0.0",
+    "apollo-server": "^2.22.1",
     "jest": "^26.6.3",
     "ts-jest": "^26.5.4"
   }

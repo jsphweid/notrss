@@ -4,3 +4,5 @@ cdk/*.js
 cdk/cdk.out
 local/
 generated.ts
+deploy.sh
+run-locally.sh

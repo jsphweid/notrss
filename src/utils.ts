@@ -32,4 +32,6 @@ export namespace Utils {
 
   export const base64Decode = (str: string): string =>
     Buffer.from(str, "base64").toString("ascii");
+
+  export const isInt = (n: any): boolean => Number(n) === n && n % 1 === 0;
 }

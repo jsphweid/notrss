@@ -1,9 +1,11 @@
 import * as AWS from "aws-sdk";
-import { Utils } from "../utils";
+
+import { Utils } from "../../utils";
 
 AWS.config.region = "us-west-2";
 
-import { DB } from "./db";
+import { DB } from ".";
+import { Version } from "./version";
 
 const documentClient = new AWS.DynamoDB.DocumentClient({
   endpoint: "localhost:8000",
@@ -166,8 +168,12 @@ describe("DB tests", () => {
 
     let conn = await DB.getSnapshots("a.com", { first: 1 });
     expect(conn.edges.length).toBe(1);
-    expect(conn.pageInfo.startCursor).toEqual(Utils.base64Encode("v1"));
-    expect(conn.pageInfo.endCursor).toEqual(Utils.base64Encode("v1"));
+    expect(conn.pageInfo.startCursor).toEqual(
+      Utils.base64Encode(Version.fromInt(1))
+    );
+    expect(conn.pageInfo.endCursor).toEqual(
+      Utils.base64Encode(Version.fromInt(1))
+    );
     expect(conn.pageInfo.hasPreviousPage).toBe(false);
     expect(conn.pageInfo.hasNextPage).toBe(true);
     expect(conn.pageInfo.endCursor).toEqual(conn.edges[0].cursor);
@@ -186,9 +192,13 @@ describe("DB tests", () => {
     });
     expect(conn.edges.length).toBe(2);
     expect(conn.pageInfo.startCursor).toEqual(conn.edges[0].cursor);
-    expect(conn.pageInfo.startCursor).toEqual(Utils.base64Encode("v2"));
+    expect(conn.pageInfo.startCursor).toEqual(
+      Utils.base64Encode(Version.fromInt(2))
+    );
     expect(conn.pageInfo.endCursor).toEqual(conn.edges[1].cursor);
-    expect(conn.pageInfo.endCursor).toEqual(Utils.base64Encode("v3"));
+    expect(conn.pageInfo.endCursor).toEqual(
+      Utils.base64Encode(Version.fromInt(3))
+    );
     expect(conn.pageInfo.hasPreviousPage).toBe(true);
     expect(conn.pageInfo.hasNextPage).toBe(false);
     expect(conn.edges.map((e) => e.node)).toEqual(
@@ -224,11 +234,15 @@ describe("DB tests", () => {
 
     let conn = await DB.getSnapshots("a.com", {
       last: 1,
-      before: Utils.base64Encode("v3"),
+      before: Utils.base64Encode(Version.fromInt(3)),
     });
     expect(conn.edges.length).toBe(1);
-    expect(conn.pageInfo.startCursor).toEqual(Utils.base64Encode("v2"));
-    expect(conn.pageInfo.endCursor).toEqual(Utils.base64Encode("v2"));
+    expect(conn.pageInfo.startCursor).toEqual(
+      Utils.base64Encode(Version.fromInt(2))
+    );
+    expect(conn.pageInfo.endCursor).toEqual(
+      Utils.base64Encode(Version.fromInt(2))
+    );
     expect(conn.pageInfo.hasPreviousPage).toBe(true);
     expect(conn.pageInfo.hasNextPage).toBe(true);
     expect(conn.edges[0].node).toEqual(
@@ -242,14 +256,18 @@ describe("DB tests", () => {
 
     conn = await DB.getSnapshots("a.com", {
       first: 2,
-      before: Utils.base64Encode("v3"),
+      before: Utils.base64Encode(Version.fromInt(3)),
     });
 
     expect(conn.edges.length).toBe(2);
     expect(conn.pageInfo.startCursor).toEqual(conn.edges[0].cursor);
-    expect(conn.pageInfo.startCursor).toEqual(Utils.base64Encode("v2"));
+    expect(conn.pageInfo.startCursor).toEqual(
+      Utils.base64Encode(Version.fromInt(2))
+    );
     expect(conn.pageInfo.endCursor).toEqual(conn.edges[1].cursor);
-    expect(conn.pageInfo.endCursor).toEqual(Utils.base64Encode("v1"));
+    expect(conn.pageInfo.endCursor).toEqual(
+      Utils.base64Encode(Version.fromInt(1))
+    );
     expect(conn.pageInfo.hasPreviousPage).toBe(true);
     expect(conn.pageInfo.hasNextPage).toBe(false);
     expect(conn.edges.map((e) => e.node)).toEqual(
@@ -294,4 +312,25 @@ describe("DB tests", () => {
       expect(conn.edges.length).toBe(3);
     }
   );
+
+  test("getTotalCountBySite works", async () => {
+    await DB.addNewSnapshot({ objectStorageKey: "1", site: "a.com" });
+    await DB.addNewSnapshot({
+      objectStorageKey: "2",
+      site: "b.com",
+      diffObjectStorageKey: "2a",
+    });
+
+    expect(await DB.getTotalCountBySite("a.com")).toBe(1);
+    expect(await DB.getTotalCountBySite("b.com")).toBe(1);
+
+    await DB.addNewSnapshot({
+      objectStorageKey: "3",
+      site: "a.com",
+      diffObjectStorageKey: "any",
+    });
+
+    expect(await DB.getTotalCountBySite("a.com")).toBe(2);
+    expect(await DB.getTotalCountBySite("b.com")).toBe(1);
+  });
 });

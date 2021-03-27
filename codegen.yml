@@ -1,7 +1,10 @@
-schema: "./src/api-lambda/**/index.ts"
+schema: "./src/api-lambda/type-defs.ts"
 generates:
   ./src/generated.ts:
+    config:
+      mappers:
+        Snapshot: ./api-lambda/mappers#SnapshotInput
+        SnapshotConnection: ./api-lambda/mappers#SnapshotConnectionInput
     plugins:
       - typescript
-      - typescript-operations
       - typescript-resolvers
