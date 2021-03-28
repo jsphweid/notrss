@@ -6,13 +6,17 @@ There are products out there that accomplish this but they cost a bit of money. 
 
 This was primarily designed for personal use.
 
+## Overview of how it works
+
+A scheduled lambda regularly scans a sparse dynamodb index for a list of sites to compare against previous versions. Using a queue and another lambda, a headless browser navigates to the site and takes a png snapshot. If there is a difference detected, it records the new snapshot and sends you an email with a picture of the diff. A simple GraphQL API is also provided to help manage the database.
+
 ## To use
 
 1. clone project and `cd` into it
-2. deploy like:
+2. `npm install`
+3. run commands below
 
 ```bash
-set -e
 npm run build
 cd cdk/
 npm run build
@@ -21,10 +25,6 @@ EMAIL_ALERTS_FROM=noreply@your.verified.ses.domain.com npx cdk deploy
 
 3. use GraphQL link created outputed from deploy process and use mutation `subscribeEmailToSites` to subscribe an email to sites
 
-### Overview of how it works
-
-A scheduled lambda regularly scans a sparse dynamodb index for a list of sites to compare against previous versions. Using a queue and another lambda, a headless browser navigates to the site and takes a png snapshot. If there is a difference detected, it records the new snapshot and sends you an email with a picture of the diff. A simple GraphQL API is also provided to help manage the database.
-
 ### Restrictions
 
 Currently, only valid emails/domains in your AWS SES work.
@@ -32,7 +32,3 @@ Currently, only valid emails/domains in your AWS SES work.
 ### Tips
 
 You can separate emails at your inbox by using the [+ trick](https://www.lifewire.com/easy-gmail-address-hacks-1616186). This works well with SES validated identities.
-
-# TODO
-
-- [ ] make unsubscribe
