@@ -51,5 +51,11 @@ export const typeDefs = gql`
     begin to monitor the site. This is currently the only way to begin monitoring a site.
     """
     subscribeEmailToSites(email: String!, sites: [String!]!): Boolean!
+
+    """
+    Unsubscribes emails from one or more sites. If there are no other emails subscribed, it'll
+    cleanup all related records and objects related to that site.
+    """
+    unsubscribeEmailFromSites(email: String!, sites: [String!]!): Boolean!
   }
 `;

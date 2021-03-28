@@ -11,7 +11,7 @@ export namespace Queue {
   const queueUrl = process.env.QUEUE_URL as string;
 
   export interface MessageData {
-    lastSnapshotObjectStorageKey: string | null;
+    lastSnapshotObjectStorageKey?: string | null;
     site: string;
   }
 

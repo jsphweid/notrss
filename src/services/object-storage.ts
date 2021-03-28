@@ -1,4 +1,5 @@
 import * as AWS from "aws-sdk";
+import { Utils } from "../utils";
 
 const s3Client = new AWS.S3();
 
@@ -24,6 +25,18 @@ export namespace ObjectStorage {
       })
       .promise()
       .then((response) => response.Body || null);
+
+  export const deleteKeys = (keys: string[]): Promise<any> =>
+    Promise.all(
+      Utils.chunkArray(keys, 1000).map((batch) =>
+        s3Client
+          .deleteObjects({
+            Delete: { Objects: batch.map((key) => ({ Key: key })) },
+            Bucket: bucketName,
+          })
+          .promise()
+      )
+    );
 
   export const urlFromKey = (objectKey: string): string =>
     // TODO: eventually this should not exist as it relies on the item

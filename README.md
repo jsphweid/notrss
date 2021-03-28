@@ -8,10 +8,18 @@ This was primarily designed for personal use.
 
 ## To use
 
-1. how to get variables
-2. deploy
-3. deploy creates a GraphQL playground link
-4. use `subscribeEmailToSites` to subscribe an email to sites
+1. clone project and `cd` into it
+2. deploy like:
+
+```bash
+set -e
+npm run build
+cd cdk/
+npm run build
+EMAIL_ALERTS_FROM=noreply@your.verified.ses.domain.com npx cdk deploy
+```
+
+3. use GraphQL link created outputed from deploy process and use mutation `subscribeEmailToSites` to subscribe an email to sites
 
 ### Overview of how it works
 

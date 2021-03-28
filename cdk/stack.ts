@@ -9,7 +9,9 @@ import * as s3 from "@aws-cdk/aws-s3";
 import * as iam from "@aws-cdk/aws-iam";
 import * as apiGateway from "@aws-cdk/aws-apigateway";
 
-import { CfnParameter, Duration } from "@aws-cdk/core";
+import { Duration } from "@aws-cdk/core";
+import { StreamViewType } from "@aws-cdk/aws-dynamodb";
+import { DynamoEventSource } from "@aws-cdk/aws-lambda-event-sources";
 
 export namespace NotRss {
   interface StackProps extends cdk.StackProps {
@@ -29,6 +31,7 @@ export namespace NotRss {
         partitionKey: { name: "PK", type: dynamodb.AttributeType.STRING },
         sortKey: { name: "SK", type: dynamodb.AttributeType.STRING },
         billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+        stream: StreamViewType.OLD_IMAGE,
       });
 
       // Sparse index so that scan operations don't have to read every single
@@ -127,16 +130,18 @@ export namespace NotRss {
         runtime: lambda.Runtime.NODEJS_14_X,
         code: lambda.Code.fromAsset("../build"),
         handler: "api-lambda/index.handler",
-        memorySize: 1024,
+        memorySize: 256,
         timeout: Duration.seconds(20),
         environment: {
           DYNAMODB_2ND_GSI,
           DYNAMODB_TABLE_NAME: table.tableName,
           S3_PNG_BUCKET_NAME: bucket.bucketName,
+          QUEUE_URL: queue.queueUrl,
         },
       });
 
       table.grantFullAccess(apiLambda);
+      queue.grantSendMessages(apiLambda);
 
       new apiGateway.LambdaRestApi(this, "graphqlEndpoint", {
         handler: apiLambda,
@@ -147,6 +152,28 @@ export namespace NotRss {
           actions: ["ses:ListVerifiedEmailAddresses"],
           resources: ["*"],
           effect: iam.Effect.ALLOW,
+        })
+      );
+
+      // Deletes objects from S3 when they are deleted from the DynamoDB table
+      const objectDeleterLambda = new lambda.Function(
+        this,
+        "ObjectDeleterLambda",
+        {
+          runtime: lambda.Runtime.NODEJS_14_X,
+          code: lambda.Code.fromAsset("../build"),
+          handler: "object-deleter-lambda/index.handler",
+          memorySize: 128,
+          timeout: Duration.seconds(10),
+          environment: { S3_PNG_BUCKET_NAME: bucket.bucketName },
+        }
+      );
+
+      bucket.grantDelete(objectDeleterLambda);
+      objectDeleterLambda.addEventSource(
+        new DynamoEventSource(table, {
+          retryAttempts: 2,
+          startingPosition: lambda.StartingPosition.LATEST,
         })
       );
     }

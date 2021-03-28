@@ -5,4 +5,5 @@ cdk/cdk.out
 local/
 generated.ts
 deploy.sh
+destroy.sh
 run-locally.sh

@@ -9,7 +9,7 @@
     "start": "ts-node src/api-lambda/run-locally.ts"
   },
   "dependencies": {
-    "apollo-server-lambda": "^2.21.2",
+    "apollo-server-lambda": "^2.22.1",
     "aws-sdk": "^2.867.0",
     "chrome-aws-lambda": "^8.0.0",
     "graphql": "^15.5.0",

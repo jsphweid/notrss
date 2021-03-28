@@ -34,4 +34,7 @@ export namespace Utils {
     Buffer.from(str, "base64").toString("ascii");
 
   export const isInt = (n: any): boolean => Number(n) === n && n % 1 === 0;
+
+  // .filter(Utils.isTruthy) is a type-safe version of .filter(Boolean)
+  export const isTruthy = <T>(item: T | null | undefined): item is T => !!item;
 }

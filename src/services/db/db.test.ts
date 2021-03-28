@@ -152,6 +152,46 @@ describe("DB tests", () => {
     );
   });
 
+  test.each`
+    options
+    ${{}}
+    ${{ first: 4 }}
+    ${{ first: 4, after: "sd" }}
+    ${{ last: 4 }}
+    ${{ last: 4, before: "oijso" }}
+  `(
+    "getSnapshots returns no results when nothing in db and `options` is $options",
+    async (options) => {
+      const conn = await DB.getSnapshots("a.com", options);
+      expect(conn.edges.length).toBe(0);
+      expect(conn).toEqual({
+        site: "a.com",
+        totalCount: null,
+        edges: [],
+        pageInfo: {
+          startCursor: null,
+          endCursor: null,
+          hasPreviousPage: false,
+          hasNextPage: false,
+        },
+      });
+    }
+  );
+
+  test("getSnapshots loads totalCount when requested", async () => {
+    await DB.addNewSnapshot({ objectStorageKey: "1", site: "a.com" });
+
+    let conn = await DB.getSnapshots("a.com", { includeTotalCount: true });
+    expect(conn.totalCount).toBe(1);
+  });
+
+  test("getSnapshots does not load totalCount when not requested", async () => {
+    await DB.addNewSnapshot({ objectStorageKey: "1", site: "a.com" });
+
+    let conn = await DB.getSnapshots("a.com");
+    expect(conn.totalCount).toBe(null);
+  });
+
   test("getSnapshots gets correct results back with forward cursor", async () => {
     await DB.addNewSnapshot({ objectStorageKey: "1", site: "a.com" });
     await DB.addNewSnapshot({
@@ -332,5 +372,20 @@ describe("DB tests", () => {
 
     expect(await DB.getTotalCountBySite("a.com")).toBe(2);
     expect(await DB.getTotalCountBySite("b.com")).toBe(1);
+  });
+
+  test("deleteSites works", async () => {
+    await DB.addNewSnapshot({ objectStorageKey: "1", site: "a.com" });
+    await DB.addNewSnapshot({
+      objectStorageKey: "2",
+      site: "a.com",
+      diffObjectStorageKey: "2a",
+    });
+
+    expect((await DB.getSnapshots("a.com")).edges.length).toBe(2);
+
+    await DB.deleteSites(["a.com"]);
+
+    expect((await DB.getSnapshots("a.com")).edges.length).toBe(0);
   });
 });

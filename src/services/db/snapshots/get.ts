@@ -17,10 +17,8 @@ const dynamoDBItemToSnapshot = (item: DynamoDBSnapshotItem): Snapshot => ({
   dateCreated: new Date(item.DateCreated),
   site: item.PK,
   version: parseInt(item.SK.split("v")[1]),
-  objectStorageUrl: ObjectStorage.urlFromKey(item.ObjectKey),
-  diffObjectStorageUrl: item.DiffObjectKey
-    ? ObjectStorage.urlFromKey(item.DiffObjectKey)
-    : null,
+  objectStorageKey: item.ObjectKey,
+  diffObjectStorageKey: item.DiffObjectKey || null,
 });
 
 export interface GetSnapshotResult {
@@ -111,13 +109,11 @@ export const _getSnapshots = async (
         }
       });
 
-  // await query();
   DB.getTotalCountBySite(site);
   const [maybeTotalCount, _] = await Promise.all([
     options?.includeTotalCount ? DB.getTotalCountBySite(site) : null,
     query(), // this will load all other info
   ]);
-  console.log("maybeTotalCount", maybeTotalCount);
 
   return {
     site,
