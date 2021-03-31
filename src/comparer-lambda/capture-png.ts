@@ -1,12 +1,46 @@
 import { Browser, Page } from "puppeteer-core";
-const scrollPageToBottom = require("puppeteer-autoscroll-down");
 
 import { PNG } from "../services/png";
 
-// Simply waiting for the network traffic to stop isn't always enough for sites
-// to be fully rendered. Adding additional time for JS and animations to come to a
-// stop will generate less fake diffs...
-// const ADDITIONAL_SLEEP_SECONDS = 5;
+const scrollPageToBottom = async (
+  page: Page,
+  scrollStep = 250,
+  scrollDelay = 100
+) => {
+  // Had to copy from here instead of just using dependency because it brought in puppeteer
+  // which is unacceptable size for lambda https://github.com/mbalabash/puppeteer-autoscroll-down/blob/master/index.js
+  const lastPosition = await page.evaluate(
+    async (step, delay) => {
+      const getScrollHeight = (element: any) => {
+        if (!element) return 0;
+
+        const { scrollHeight, offsetHeight, clientHeight } = element;
+        return Math.max(scrollHeight, offsetHeight, clientHeight);
+      };
+
+      const position = await new Promise((resolve) => {
+        let count = 0;
+        const intervalId = setInterval(() => {
+          const { body } = document;
+          const availableScrollHeight = getScrollHeight(body);
+
+          window.scrollBy(0, step);
+          count += step;
+
+          if (count >= availableScrollHeight) {
+            clearInterval(intervalId);
+            resolve(count);
+          }
+        }, delay);
+      });
+
+      return position;
+    },
+    scrollStep,
+    scrollDelay
+  );
+  return lastPosition;
+};
 
 const waitTillHTMLRendered = async (page: Page, timeout = 10000) => {
   // stolen from here: https://stackoverflow.com/a/61304202/4918389
