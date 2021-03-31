@@ -7,3 +7,5 @@ generated.ts
 deploy.sh
 destroy.sh
 run-locally.sh
+capture-locally.ts
+.DS_Store

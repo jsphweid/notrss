@@ -32,3 +32,7 @@ Currently, only valid emails/domains in your AWS SES work.
 ### Tips
 
 You can separate emails at your inbox by using the [+ trick](https://www.lifewire.com/easy-gmail-address-hacks-1616186). This works well with SES validated identities.
+
+# TODO
+
+Make a DL queue with alarm...

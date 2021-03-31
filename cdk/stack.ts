@@ -100,7 +100,7 @@ export namespace NotRss {
         runtime: lambda.Runtime.NODEJS_14_X,
         code: lambda.Code.fromAsset("../build"),
         handler: "comparer-lambda/index.handler",
-        memorySize: 512,
+        memorySize: 2048,
         timeout: Duration.seconds(comparerLambdaTimeout),
         environment: {
           S3_PNG_BUCKET_NAME: bucket.bucketName,
