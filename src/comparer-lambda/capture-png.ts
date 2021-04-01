@@ -4,12 +4,12 @@ import { PNG } from "../services/png";
 
 const scrollPageToBottom = async (
   page: Page,
-  scrollStep = 250,
-  scrollDelay = 100
-) => {
-  // Had to copy from here instead of just using dependency because it brought in puppeteer
-  // which is unacceptable size for lambda https://github.com/mbalabash/puppeteer-autoscroll-down/blob/master/index.js
-  const lastPosition = await page.evaluate(
+  scrollStep = 400,
+  scrollDelay = 400
+): Promise<void> =>
+  // derived from https://github.com/mbalabash/puppeteer-autoscroll-down/blob/master/index.js
+  // NOTE: there seems to be a limit to the height of a PNG
+  page.evaluate(
     async (step, delay) => {
       const getScrollHeight = (element: any) => {
         if (!element) return 0;
@@ -18,29 +18,38 @@ const scrollPageToBottom = async (
         return Math.max(scrollHeight, offsetHeight, clientHeight);
       };
 
-      const position = await new Promise((resolve) => {
-        let count = 0;
-        const intervalId = setInterval(() => {
-          const { body } = document;
-          const availableScrollHeight = getScrollHeight(body);
+      const timeout = (ms: number) =>
+        new Promise((resolve) => setTimeout(resolve, ms));
 
-          window.scrollBy(0, step);
-          count += step;
+      await new Promise((resolve) => {
+        const gotoBottom = async (start: number = 0): Promise<void> => {
+          let count = start;
+          let intervalId = setInterval(async () => {
+            const { body } = document;
+            let availableScrollHeight = getScrollHeight(body);
 
-          if (count >= availableScrollHeight) {
-            clearInterval(intervalId);
-            resolve(count);
-          }
-        }, delay);
+            window.scrollBy(0, step);
+            count += step;
+
+            // go a little bit over
+            if (count >= availableScrollHeight + step) {
+              clearInterval(intervalId);
+              await timeout(2000);
+              const possibleNewScrollHeight = getScrollHeight(body);
+              if (possibleNewScrollHeight > availableScrollHeight) {
+                await gotoBottom(count - step); // reset a bit
+              } else {
+                resolve(null);
+              }
+            }
+          }, delay);
+        };
+        gotoBottom();
       });
-
-      return position;
     },
     scrollStep,
     scrollDelay
   );
-  return lastPosition;
-};
 
 const waitTillHTMLRendered = async (page: Page, timeout = 10000) => {
   // stolen from here: https://stackoverflow.com/a/61304202/4918389
