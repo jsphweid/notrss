@@ -123,6 +123,16 @@ const waitForNetworkIdle = (
   return promise;
 };
 
+export const pageContainsYoutube = (page: Page): Promise<boolean> =>
+  page.evaluate(() => {
+    for (const iframe of document.getElementsByTagName("iframe")) {
+      if (iframe.src.includes("youtube.com/embed")) {
+        return true;
+      }
+    }
+    return false;
+  });
+
 const noAnimations = `
 *,
 *::after,
@@ -145,7 +155,7 @@ export const capturePng = async (
   await scrollPageToBottom(page);
   await waitForNetworkIdle(page, 1000);
   await scrollPageToTop(page);
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout((await pageContainsYoutube(page)) ? 15000 : 1000);
   await page.addStyleTag({ content: noAnimations });
   const screenshot = await page.screenshot({ fullPage: true });
   const current = await PNG.fromBuffer(screenshot as Buffer);
