@@ -25,9 +25,20 @@ export namespace PNG {
     const png2Data = areSameSize(png2, diff)
       ? png2.data
       : resize(png2, { width, height }).data;
-    return pixelmatch(png1Data, png2Data, diff.data, width, height) === 0
-      ? null
-      : diff;
+    const numDifferingPixels = pixelmatch(
+      png1Data,
+      png2Data,
+      diff.data,
+      width,
+      height
+    );
+    const totalNumPixels = width * height;
+
+    // TODO: In the future, a user should probably define this
+    // number and essentially decide whether or not to be alerted
+    const numChangedPixelsThreshold = totalNumPixels * 0.01;
+
+    return numDifferingPixels > numChangedPixelsThreshold ? diff : null;
   };
 
   export const pack = (png: PNG): stream.PassThrough => {
